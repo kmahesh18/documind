@@ -1,0 +1,32 @@
+# DocuMind Backend
+
+# Core
+fastapi
+uvicorn[standard]
+python-multipart
+python-jose[cryptography]
+
+# Database
+supabase
+python-dotenv
+
+# AI - Gemini for chat, FREE local embeddings
+google-generativeai
+sentence-transformers
+pinecone
+
+# HTTP
+httpx
+
+# Validation
+pydantic
+pydantic-settings
+
+# Document Processing - Multi-format support
+pdfplumber
+python-docx
+openpyxl
+python-pptx
+
+# Payments
+razorpay
