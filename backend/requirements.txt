@@ -14,13 +14,14 @@ python-dotenv
 # AI - Gemini for chat, FREE local embeddings
 google-generativeai
 sentence-transformers
+langchain-huggingface
 pinecone
 
 # HTTP
 httpx
 
 # Validation
-pydantic
+pydantic[email]
 pydantic-settings
 
 # Document Processing - Multi-format support
