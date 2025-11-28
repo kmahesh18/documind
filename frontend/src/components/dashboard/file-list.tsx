@@ -3,10 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { FileText, Video, Image, File, Trash2, RefreshCw, Clock, CheckCircle2, AlertCircle, Loader2, MessageSquare } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { getUserFiles, deleteFile, getFileStatus } from "@/lib/api";
 import { UploadedFile, FileType } from "@/types";
 import { formatDistanceToNow } from "date-fns";

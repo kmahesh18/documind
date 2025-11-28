@@ -15,7 +15,7 @@ interface CreditsContextType {
 const CreditsContext = createContext<CreditsContextType | undefined>(undefined);
 
 export function CreditsProvider({ children }: { children: React.ReactNode }) {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const [credits, setCredits] = useState<UserCredits | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,9 +29,10 @@ export function CreditsProvider({ children }: { children: React.ReactNode }) {
     try {
       const data = await getCreditsBalance();
       setCredits(data);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Failed to fetch credits:", err);
-      setError(err.message || "Failed to load credits");
+      const errorMessage = err instanceof Error ? err.message : "Failed to load credits";
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }

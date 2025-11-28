@@ -57,7 +57,7 @@ export function ChatInterface({ userImage, userName, fileId }: ChatInterfaceProp
       setIsLoadingHistory(true);
       try {
         const response = await getChatHistory(fileId);
-        const loadedMessages: ExtendedChatMessage[] = response.messages.map((msg: any) => {
+        const loadedMessages: ExtendedChatMessage[] = response.messages.map((msg: { id: string; role: string; content: string; citations?: object[]; created_at: string }) => {
           // Parse visual from content if exists
           const { text, visual } = parseVisualFromContent(msg.content);
           return {
@@ -131,11 +131,12 @@ export function ChatInterface({ userImage, userName, fileId }: ChatInterfaceProp
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Chat error:", error);
       
       // Check if it's an insufficient credits error
-      if (error.response?.status === 402) {
+      const axiosError = error as { response?: { status?: number } };
+      if (axiosError.response?.status === 402) {
         setInsufficientCredits(true);
         setShowBuyModal(true);
         // Remove the user message since we couldn't process it
@@ -280,7 +281,7 @@ export function ChatInterface({ userImage, userName, fileId }: ChatInterfaceProp
           <div className="mb-3 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg flex items-center gap-2">
             <AlertCircle className="h-4 w-4 text-amber-400 shrink-0" />
             <span className="text-sm text-amber-400">
-              You're out of credits.{" "}
+              You&apos;re out of credits.{" "}
               <button
                 onClick={() => setShowBuyModal(true)}
                 className="underline hover:text-amber-300"

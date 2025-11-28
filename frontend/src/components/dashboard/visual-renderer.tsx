@@ -129,13 +129,14 @@ const COLORS = [
   "#a855f7", // purple-500
 ];
 
-const NODE_COLORS = {
-  start: "#10b981",
-  process: "#3b82f6",
-  decision: "#f59e0b",
-  end: "#ef4444",
-  default: "#6b7280",
-};
+// Node colors for flowcharts - keeping for future use
+// const NODE_COLORS = {
+//   start: "#10b981",
+//   process: "#3b82f6",
+//   decision: "#f59e0b",
+//   end: "#ef4444",
+//   default: "#6b7280",
+// };
 
 // ============= CHART RENDERER =============
 
@@ -521,7 +522,7 @@ export function parseVisualFromContent(content: string): { text: string; visual:
             title: parsed.title || "",
             x_axis_label: parsed.x_axis_label,
             y_axis_label: parsed.y_axis_label,
-            data_points: parsed.data_points.map((dp: any) => ({
+            data_points: parsed.data_points.map((dp: { label?: string; name?: string; value?: number; color?: string }) => ({
               label: dp.label || dp.name || "Unknown",
               value: Number(dp.value || 0),
               color: dp.color
@@ -530,55 +531,84 @@ export function parseVisualFromContent(content: string): { text: string; visual:
           const text = content.replace(/```(?:json|chart|visual)\s*[\s\S]*?```/, "").trim();
           return { text, visual };
         }
-      } catch (e) {
-        console.log("Failed to parse visual JSON:", e);
+      } catch {
+        console.log("Failed to parse visual JSON");
       }
     }
 
     return { text: content, visual: null };
-  } catch (e) {
+  } catch {
     return { text: content, visual: null };
   }
 }
 
-function normalizeVisual(parsed: any): VisualData {
+interface ParsedVisual {
+  visual_type?: string;
+  chart_type?: string;
+  title?: string;
+  x_axis_label?: string;
+  y_axis_label?: string;
+  data_points?: Array<{ label?: string; name?: string; value?: number; color?: string }>;
+  nodes?: Array<unknown>;
+  connections?: Array<unknown>;
+  branches?: Array<unknown>;
+  root?: { label: string };
+  events?: Array<unknown>;
+  items?: Array<unknown>;
+}
+
+function normalizeVisual(parsed: ParsedVisual): VisualData {
   switch (parsed.visual_type) {
     case "chart":
       return {
         ...parsed,
-        data_points: parsed.data_points?.map((dp: any) => ({
+        visual_type: "chart",
+        chart_type: (parsed as ChartData).chart_type || "bar",
+        title: parsed.title || "",
+        data_points: parsed.data_points?.map((dp: { label?: string; name?: string; value?: number; color?: string }) => ({
           label: dp.label || dp.name || "Unknown",
           value: Number(dp.value || 0),
           color: dp.color
         })) || []
-      };
+      } as ChartData;
     case "flowchart":
       return {
         ...parsed,
+        visual_type: "flowchart",
+        title: parsed.title || "",
         nodes: parsed.nodes || [],
         connections: parsed.connections || []
-      };
+      } as FlowchartData;
     case "concept_map":
       return {
         ...parsed,
+        visual_type: "concept_map",
+        title: parsed.title || "",
+        central_concept: (parsed as ConceptMapData).central_concept || "",
         branches: parsed.branches || []
-      };
+      } as ConceptMapData;
     case "hierarchy":
       return {
         ...parsed,
+        visual_type: "hierarchy",
+        title: parsed.title || "",
         root: parsed.root || { label: "Root" }
-      };
+      } as HierarchyData;
     case "timeline":
       return {
         ...parsed,
+        visual_type: "timeline",
+        title: parsed.title || "",
         events: parsed.events || []
-      };
+      } as TimelineData;
     case "comparison":
       return {
         ...parsed,
+        visual_type: "comparison",
+        title: parsed.title || "",
         items: parsed.items || []
-      };
+      } as ComparisonData;
     default:
-      return parsed;
+      return parsed as VisualData;
   }
 }

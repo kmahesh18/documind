@@ -19,8 +19,32 @@ interface BuyCreditsModalProps {
 
 declare global {
   interface Window {
-    Razorpay: any;
+    Razorpay: new (options: RazorpayOptions) => RazorpayInstance;
   }
+}
+
+interface RazorpayOptions {
+  key: string;
+  amount: number;
+  currency: string;
+  name: string;
+  description: string;
+  order_id: string;
+  prefill: { name: string; email: string };
+  notes: Record<string, string>;
+  theme: { color: string };
+  handler: (response: RazorpayResponse) => void;
+  modal: { ondismiss: () => void };
+}
+
+interface RazorpayInstance {
+  open: () => void;
+}
+
+interface RazorpayResponse {
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
 }
 
 export function BuyCreditsModal({ open, onOpenChange }: BuyCreditsModalProps) {
@@ -45,7 +69,7 @@ export function BuyCreditsModal({ open, onOpenChange }: BuyCreditsModalProps) {
       setLoading(true);
       const data = await getCreditPackages();
       setPackages(data);
-    } catch (err) {
+    } catch {
       setError("Failed to load packages");
     } finally {
       setLoading(false);
@@ -89,7 +113,7 @@ export function BuyCreditsModal({ open, onOpenChange }: BuyCreditsModalProps) {
         theme: {
           color: "#10b981",
         },
-        handler: async (response: any) => {
+        handler: async (response: RazorpayResponse) => {
           // Verify payment
           try {
             const result = await verifyPayment(
@@ -108,8 +132,9 @@ export function BuyCreditsModal({ open, onOpenChange }: BuyCreditsModalProps) {
             } else {
               setError(result.message || "Payment verification failed");
             }
-          } catch (err: any) {
-            setError(err.response?.data?.detail || "Payment verification failed");
+          } catch (err: unknown) {
+            const errorMessage = err instanceof Error ? err.message : "Payment verification failed";
+            setError(errorMessage);
           }
           setPurchasing(null);
         },
@@ -122,8 +147,9 @@ export function BuyCreditsModal({ open, onOpenChange }: BuyCreditsModalProps) {
 
       const razorpay = new window.Razorpay(options);
       razorpay.open();
-    } catch (err: any) {
-      setError(err.response?.data?.detail || "Failed to create order");
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to create order";
+      setError(errorMessage);
       setPurchasing(null);
     }
   };

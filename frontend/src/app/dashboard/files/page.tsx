@@ -1,14 +1,11 @@
 "use client";
 
-import { useState } from "react";
 import { FileList } from "@/components/dashboard/file-list";
 import { Button } from "@/components/ui/button";
 import { Upload } from "lucide-react";
 import Link from "next/link";
 
 export default function FilesPage() {
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
-
   return (
     <div className="max-w-4xl mx-auto p-6">
       <div className="flex items-center justify-between mb-8">
@@ -26,7 +23,7 @@ export default function FilesPage() {
         </Link>
       </div>
 
-      <FileList refreshTrigger={refreshTrigger} />
+      <FileList />
     </div>
   );
 }

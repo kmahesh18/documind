@@ -8,8 +8,7 @@ import {
   Upload, 
   LogOut, 
   Menu,
-  X,
-  Home
+  X
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";

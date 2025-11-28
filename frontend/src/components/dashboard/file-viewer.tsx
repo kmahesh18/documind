@@ -43,6 +43,7 @@ export function FileViewer({ file }: FileViewerProps) {
   if (file_type === "image") {
     return (
       <div className="h-full flex items-center justify-center p-4 bg-neutral-950">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={file_url}
           alt={filename}
@@ -54,7 +55,7 @@ export function FileViewer({ file }: FileViewerProps) {
 
   // Text file viewer
   if (file_type === "txt") {
-    return <TextViewer url={file_url} filename={filename} />;
+    return <TextViewer url={file_url} />;
   }
 
   // Video viewer
@@ -194,7 +195,7 @@ export function FileViewer({ file }: FileViewerProps) {
 }
 
 // Text file viewer component
-function TextViewer({ url, filename }: { url: string; filename: string }) {
+function TextViewer({ url }: { url: string }) {
   const [content, setContent] = useState<string>("");
   const [loading, setLoading] = useState(true);
 

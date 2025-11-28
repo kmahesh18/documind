@@ -17,12 +17,12 @@ import {
 } from "lucide-react";
 import { getCreditTransactions, CreditTransaction } from "@/lib/api";
 import { useCredits } from "@/contexts/credits-context";
-import { CreditsDisplay, BuyCreditsModal } from "@/components/credits";
+import { BuyCreditsModal } from "@/components/credits";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 
 export default function CreditsPage() {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const router = useRouter();
   const { credits, isLoading: creditsLoading } = useCredits();
   const [transactions, setTransactions] = useState<CreditTransaction[]>([]);

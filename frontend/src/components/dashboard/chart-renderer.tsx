@@ -198,7 +198,7 @@ export function parseChartFromContent(content: string): { text: string; chart: C
             title: parsed.title || "",
             x_axis_label: parsed.x_axis_label,
             y_axis_label: parsed.y_axis_label,
-            data_points: parsed.data_points.map((dp: any) => ({
+            data_points: parsed.data_points.map((dp: { label?: string; name?: string; category?: string; x?: string | number; value?: number; y?: number; count?: number; color?: string }) => ({
               label: dp.label || dp.name || dp.category || String(dp.x) || "Unknown",
               value: Number(dp.value || dp.y || dp.count || 0),
               color: dp.color
@@ -209,8 +209,8 @@ export function parseChartFromContent(content: string): { text: string; chart: C
           const text = content.replace(/```(?:json|chart)\s*[\s\S]*?```/, "").trim();
           return { text, chart: normalizedChart };
         }
-      } catch (e) {
-        console.log("Failed to parse chart JSON:", e);
+      } catch {
+        console.log("Failed to parse chart JSON");
       }
     }
 
@@ -225,7 +225,7 @@ export function parseChartFromContent(content: string): { text: string; chart: C
             title: parsed.title || "",
             x_axis_label: parsed.x_axis_label,
             y_axis_label: parsed.y_axis_label,
-            data_points: parsed.data_points.map((dp: any) => ({
+            data_points: parsed.data_points.map((dp: { label?: string; name?: string; category?: string; value?: number; count?: number; color?: string }) => ({
               label: dp.label || dp.name || dp.category || "Unknown",
               value: Number(dp.value || dp.count || 0),
               color: dp.color
@@ -240,7 +240,7 @@ export function parseChartFromContent(content: string): { text: string; chart: C
     }
 
     return { text: content, chart: null };
-  } catch (e) {
+  } catch {
     return { text: content, chart: null };
   }
 }
