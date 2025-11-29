@@ -9,7 +9,7 @@ import { Sidebar } from "@/components/dashboard/sidebar";
 import { MobileChatSheet } from "@/components/dashboard/mobile-chat-sheet";
 import { CreditsDisplay } from "@/components/credits";
 import { getUserFiles, clearChatHistory } from "@/lib/api";
-import { GripVertical, Upload, FileText, Menu, ChevronDown, Trash2 } from "lucide-react";
+import { GripVertical, Upload, FileText, Menu, ChevronDown, Trash2, FileSpreadsheet, FileImage, FileVideo, FileAudio, File, Presentation } from "lucide-react";
 
 interface FileData {
   id: string;
@@ -18,6 +18,27 @@ interface FileData {
   file_url: string;
   status: string;
 }
+
+// Helper function to get file icon based on type
+const getFileIcon = (fileType: string) => {
+  const type = fileType.toLowerCase();
+  if (type.includes('pdf')) {
+    return { icon: FileText, color: 'text-red-400' };
+  } else if (type.includes('doc') || type.includes('word')) {
+    return { icon: FileText, color: 'text-blue-400' };
+  } else if (type.includes('xls') || type.includes('sheet') || type.includes('csv')) {
+    return { icon: FileSpreadsheet, color: 'text-green-400' };
+  } else if (type.includes('ppt') || type.includes('presentation')) {
+    return { icon: Presentation, color: 'text-orange-400' };
+  } else if (type.includes('image') || type.includes('png') || type.includes('jpg') || type.includes('jpeg') || type.includes('gif') || type.includes('webp')) {
+    return { icon: FileImage, color: 'text-purple-400' };
+  } else if (type.includes('video') || type.includes('mp4') || type.includes('webm') || type.includes('mov')) {
+    return { icon: FileVideo, color: 'text-pink-400' };
+  } else if (type.includes('audio') || type.includes('mp3') || type.includes('wav') || type.includes('ogg')) {
+    return { icon: FileAudio, color: 'text-yellow-400' };
+  }
+  return { icon: File, color: 'text-gray-400' };
+};
 
 export default function DashboardPage() {
   const { data: session } = useSession();
@@ -132,37 +153,18 @@ export default function DashboardPage() {
           {/* Divider - Hidden on mobile */}
           <div className="hidden sm:block h-6 w-px bg-neutral-700" />
 
-          {/* File Selector - Mobile: dropdown button, Desktop: select */}
-          <div className="flex items-center gap-2 flex-1 min-w-0">
+          {/* File Selector - Modern dropdown for both mobile and desktop */}
+          <div className="flex items-center gap-2 flex-1 min-w-0 relative">
             <FileText className="h-4 w-4 text-neutral-500 hidden sm:block" />
             
-            {/* Mobile: Custom dropdown button */}
+            {/* Custom dropdown button - works for all screen sizes */}
             <button
               onClick={() => setShowFileSelector(!showFileSelector)}
-              className="md:hidden flex items-center gap-2 bg-neutral-800 px-3 py-1.5 rounded-lg text-white text-sm max-w-[180px]"
+              className="flex items-center gap-2 bg-neutral-800/80 hover:bg-neutral-700/80 px-3 py-2 rounded-xl text-white text-sm max-w-[200px] md:max-w-xs border border-neutral-700/50 transition-all"
             >
               <span className="truncate">{activeFile?.filename || "Select file"}</span>
-              <ChevronDown className="h-4 w-4 shrink-0" />
+              <ChevronDown className={`h-4 w-4 shrink-0 transition-transform duration-200 ${showFileSelector ? 'rotate-180' : ''}`} />
             </button>
-            
-            {/* Desktop: Native select */}
-            <select
-              value={activeFile?.id || ""}
-              onChange={(e) => {
-                const file = files.find(f => f.id === e.target.value);
-                setActiveFile(file || null);
-              }}
-              className="hidden md:block bg-neutral-800 text-white text-sm rounded-lg px-3 py-1.5 border border-neutral-700 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20 transition-all max-w-xs"
-            >
-              {files.length === 0 && (
-                <option value="">No files uploaded</option>
-              )}
-              {files.map((file) => (
-                <option key={file.id} value={file.id}>
-                  {file.filename}
-                </option>
-              ))}
-            </select>
           </div>
 
           {/* Upload Button */}
@@ -178,30 +180,58 @@ export default function DashboardPage() {
           <CreditsDisplay variant="header" />
         </div>
 
-        {/* Mobile File Selector Dropdown */}
+        {/* Mobile File Selector Dropdown - Modern curved design */}
         {showFileSelector && (
-          <div className="md:hidden absolute top-14 left-0 right-0 z-30 bg-neutral-900 border-b border-neutral-700 max-h-60 overflow-y-auto">
-            {files.length === 0 ? (
-              <div className="px-4 py-3 text-neutral-400 text-sm">No files uploaded</div>
-            ) : (
-              files.map((file) => (
-                <button
-                  key={file.id}
-                  onClick={() => {
-                    setActiveFile(file);
-                    setShowFileSelector(false);
-                  }}
-                  className={`w-full px-4 py-3 text-left text-sm flex items-center gap-3 transition-colors ${
-                    activeFile?.id === file.id 
-                      ? "bg-emerald-500/10 text-emerald-500" 
-                      : "text-white hover:bg-neutral-800"
-                  }`}
-                >
-                  <FileText className="h-4 w-4 shrink-0" />
-                  <span className="truncate">{file.filename}</span>
-                </button>
-              ))
-            )}
+          <div className="absolute top-16 left-2 right-2 md:left-auto md:right-auto md:w-80 z-30 bg-neutral-900/95 backdrop-blur-xl border border-neutral-700/50 rounded-2xl shadow-2xl shadow-black/50 max-h-96 overflow-hidden"
+               style={{ marginLeft: 'clamp(60px, 10vw, 140px)' }}>
+            <div className="p-2">
+              <p className="text-[11px] font-medium text-neutral-500 uppercase tracking-wider px-3 py-2">
+                Your Documents
+              </p>
+              <div className="max-h-72 overflow-y-auto space-y-1 scrollbar-thin scrollbar-thumb-neutral-700 scrollbar-track-transparent">
+                {files.length === 0 ? (
+                  <div className="px-4 py-6 text-center">
+                    <div className="h-12 w-12 rounded-xl bg-neutral-800 flex items-center justify-center mx-auto mb-3">
+                      <FileText className="h-6 w-6 text-neutral-600" />
+                    </div>
+                    <p className="text-neutral-400 text-sm">No files uploaded</p>
+                    <a 
+                      href="/dashboard/upload"
+                      className="text-emerald-500 text-sm hover:text-emerald-400 mt-1 inline-block"
+                    >
+                      Upload your first document
+                    </a>
+                  </div>
+                ) : (
+                  files.map((file) => {
+                    const isActive = activeFile?.id === file.id;
+                    const { icon: FileIcon, color: iconColor } = getFileIcon(file.file_type);
+                    return (
+                      <button
+                        key={file.id}
+                        onClick={() => {
+                          setActiveFile(file);
+                          setShowFileSelector(false);
+                        }}
+                        className={`w-full px-3 py-2.5 text-left text-sm flex items-center gap-3 rounded-xl transition-all duration-200 ${
+                          isActive 
+                            ? "bg-emerald-500/15 text-emerald-400" 
+                            : "text-neutral-300 hover:bg-neutral-800/70 hover:text-white"
+                        }`}
+                      >
+                        <div className={`p-2 rounded-lg shrink-0 ${isActive ? 'bg-emerald-500/20' : 'bg-neutral-800/80'}`}>
+                          <FileIcon className={`w-4 h-4 ${isActive ? 'text-emerald-400' : iconColor}`} />
+                        </div>
+                        <span className="truncate flex-1">{file.filename}</span>
+                        {isActive && (
+                          <div className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                        )}
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </div>
           </div>
         )}
 
@@ -212,7 +242,7 @@ export default function DashboardPage() {
           onClick={() => setShowFileSelector(false)}
         >
           {/* MOBILE LAYOUT: Full width document viewer */}
-          <div className="md:hidden flex-1 flex flex-col bg-neutral-900 rounded-xl border border-neutral-800 overflow-hidden">
+          <div className="md:hidden flex-1 flex flex-col bg-neutral-900 rounded-xl border border-neutral-800 overflow-hidden h-full">
             {activeFile ? (
               <FileViewer file={activeFile} />
             ) : (
@@ -237,9 +267,9 @@ export default function DashboardPage() {
           {/* Left: File Viewer */}
           <div 
             style={{ width: `${leftWidth}%` }}
-            className="hidden md:flex bg-neutral-900 rounded-l-xl border border-neutral-800 overflow-hidden flex-col"
+            className="hidden md:flex bg-neutral-900 rounded-l-xl border border-neutral-800 overflow-hidden flex-col h-full"
           >
-            <div className="flex-1 overflow-auto bg-neutral-950">
+            <div className="flex-1 bg-neutral-950 h-full">
               {activeFile ? (
                 <FileViewer file={activeFile} />
               ) : (

@@ -1,6 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import DocViewer, { DocViewerRenderers } from "@cyntler/react-doc-viewer";
+import "@cyntler/react-doc-viewer/dist/index.css";
+import Papa from "papaparse";
+import * as XLSX from "xlsx";
 
 interface FileViewerProps {
   file: {
@@ -11,6 +15,11 @@ interface FileViewerProps {
     status: string;
   };
 }
+
+// File types that should use DocViewer (excluding spreadsheets now)
+const DOC_VIEWER_TYPES = ["docx", "ppt", "pptx", "doc"];
+// Spreadsheet types use custom viewers
+const SPREADSHEET_TYPES = ["xlsx", "xls", "csv"];
 
 export function FileViewer({ file }: FileViewerProps) {
   const { filename, file_type, file_url, status } = file;
@@ -90,84 +99,19 @@ export function FileViewer({ file }: FileViewerProps) {
     );
   }
 
-  // PPT / PPTX viewer (fallback)
-  if (file_type === "ppt") {
-    return (
-      <div className="h-full flex items-center justify-center bg-neutral-950">
-        <div className="text-center">
-          <div className="w-16 h-16 bg-neutral-800 rounded-lg flex items-center justify-center mb-4 mx-auto">
-            <svg className="w-8 h-8 text-violet-400" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" strokeWidth="1.5" />
-              <path d="M14 2v6h6" strokeWidth="1.5" />
-            </svg>
-          </div>
-          <p className="text-neutral-300">{filename}</p>
-          <p className="text-neutral-500 text-sm mt-1">Slide preview not available</p>
-          <a
-            href={file_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-block mt-4 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-white text-sm transition-colors"
-          >
-            Open Presentation
-          </a>
-        </div>
-      </div>
-    );
+  // CSV viewer using PapaParse
+  if (file_type === "csv") {
+    return <CSVViewer url={file_url} filename={filename} />;
   }
 
-  // DOCX viewer (fallback)
-  if (file_type === "docx") {
-    return (
-      <div className="h-full flex items-center justify-center bg-neutral-950">
-        <div className="text-center">
-          <div className="w-16 h-16 bg-neutral-800 rounded-lg flex items-center justify-center mb-4 mx-auto">
-            <svg className="w-8 h-8 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" strokeWidth="1.5" />
-              <path d="M14 2v6h6" strokeWidth="1.5" />
-              <path d="M16 13H8M16 17H8M10 9H8" strokeWidth="1.5" />
-            </svg>
-          </div>
-          <p className="text-neutral-300">{filename}</p>
-          <p className="text-neutral-500 text-sm mt-1">Document preview not available</p>
-          <a
-            href={file_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-block mt-4 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-white text-sm transition-colors"
-          >
-            Open Document
-          </a>
-        </div>
-      </div>
-    );
+  // Excel viewer using xlsx library
+  if (file_type === "xlsx" || file_type === "xls") {
+    return <ExcelViewer url={file_url} filename={filename} />;
   }
 
-  // XLSX viewer (fallback)
-  if (file_type === "xlsx") {
-    return (
-      <div className="h-full flex items-center justify-center bg-neutral-950">
-        <div className="text-center">
-          <div className="w-16 h-16 bg-neutral-800 rounded-lg flex items-center justify-center mb-4 mx-auto">
-            <svg className="w-8 h-8 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" strokeWidth="1.5" />
-              <path d="M14 2v6h6" strokeWidth="1.5" />
-              <path d="M8 13h8M8 17h8M8 9h2" strokeWidth="1.5" />
-            </svg>
-          </div>
-          <p className="text-neutral-300">{filename}</p>
-          <p className="text-neutral-500 text-sm mt-1">Spreadsheet preview not available</p>
-          <a
-            href={file_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-block mt-4 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-white text-sm transition-colors"
-          >
-            Open Spreadsheet
-          </a>
-        </div>
-      </div>
-    );
+  // Document viewer for DOCX, PPTX using react-doc-viewer
+  if (DOC_VIEWER_TYPES.includes(file_type)) {
+    return <DocumentViewer url={file_url} filename={filename} fileType={file_type} />;
   }
 
   // Fallback for unsupported types
@@ -225,6 +169,400 @@ function TextViewer({ url }: { url: string }) {
       <pre className="text-neutral-300 text-sm whitespace-pre-wrap font-mono">
         {content}
       </pre>
+    </div>
+  );
+}
+
+// Document viewer component using react-doc-viewer (for DOCX, PPTX only)
+function DocumentViewer({ url, filename, fileType }: { url: string; filename: string; fileType: string }) {
+  const [error, setError] = useState(false);
+  const docs = [{ uri: url, fileName: filename }];
+
+  if (error) {
+    return (
+      <div className="h-full flex items-center justify-center bg-neutral-950">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-neutral-800 rounded-lg flex items-center justify-center mb-4 mx-auto">
+            <svg className="w-8 h-8 text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </div>
+          <p className="text-neutral-300">{filename}</p>
+          <p className="text-neutral-500 text-sm mt-1">Preview failed to load</p>
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-block mt-4 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-white text-sm transition-colors"
+          >
+            Download File
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-full w-full bg-neutral-950 flex flex-col">
+      {/* Controls Bar */}
+      <div className="flex items-center justify-between px-4 py-2 bg-neutral-900 border-b border-neutral-800 shrink-0">
+        <span className="text-neutral-400 text-sm truncate max-w-[200px]">{filename}</span>
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="p-1.5 rounded-md bg-neutral-800 hover:bg-neutral-700 transition-colors"
+          title="Download file"
+        >
+          <svg className="w-4 h-4 text-neutral-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+        </a>
+      </div>
+
+      {/* Document Container - full height with overflow auto for scrolling */}
+      <div className="flex-1 doc-viewer-container overflow-auto">
+        <DocViewer
+          documents={docs}
+          pluginRenderers={DocViewerRenderers}
+          config={{
+            header: {
+              disableHeader: true,
+              disableFileName: true,
+            },
+            pdfVerticalScrollByDefault: true,
+            loadingRenderer: {
+              overrideComponent: () => (
+                <div className="h-full w-full flex items-center justify-center bg-neutral-950">
+                  <div className="text-center">
+                    <div className="animate-spin w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full mx-auto mb-3"></div>
+                    <p className="text-neutral-300">Loading {filename}...</p>
+                  </div>
+                </div>
+              ),
+            },
+            noRenderer: {
+              overrideComponent: () => {
+                setError(true);
+                return null;
+              },
+            },
+          }}
+          style={{
+            width: "100%",
+            height: "100%",
+            minHeight: "100%",
+            backgroundColor: "#0a0a0a",
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// CSV Viewer using PapaParse - fast and responsive
+function CSVViewer({ url, filename }: { url: string; filename: string }) {
+  const [data, setData] = useState<string[][]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [visibleRows, setVisibleRows] = useState(100);
+
+  useEffect(() => {
+    fetch(url)
+      .then((res) => res.text())
+      .then((text) => {
+        Papa.parse(text, {
+          complete: (results) => {
+            setData(results.data as string[][]);
+            setLoading(false);
+          },
+          error: () => {
+            setError(true);
+            setLoading(false);
+          },
+        });
+      })
+      .catch(() => {
+        setError(true);
+        setLoading(false);
+      });
+  }, [url]);
+
+  const loadMore = () => {
+    setVisibleRows((prev) => Math.min(prev + 100, data.length));
+  };
+
+  if (loading) {
+    return (
+      <div className="h-full flex items-center justify-center bg-neutral-950">
+        <div className="text-center">
+          <div className="animate-spin w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full mx-auto mb-3"></div>
+          <p className="text-neutral-300">Loading {filename}...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || data.length === 0) {
+    return (
+      <div className="h-full flex items-center justify-center bg-neutral-950">
+        <div className="text-center">
+          <p className="text-neutral-300">{filename}</p>
+          <p className="text-neutral-500 text-sm mt-1">Failed to load CSV</p>
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-block mt-4 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-white text-sm transition-colors"
+          >
+            Download File
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  const headers = data[0] || [];
+  const rows = data.slice(1, visibleRows + 1);
+  const hasMore = data.length > visibleRows + 1;
+
+  return (
+    <div className="h-full w-full bg-neutral-950 flex flex-col">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-2 bg-neutral-900 border-b border-neutral-800 shrink-0">
+        <span className="text-neutral-400 text-sm truncate">{filename}</span>
+        <div className="flex items-center gap-3">
+          <span className="text-neutral-500 text-xs">
+            {data.length - 1} rows × {headers.length} cols
+          </span>
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-1.5 rounded-md bg-neutral-800 hover:bg-neutral-700 transition-colors"
+            title="Download file"
+          >
+            <svg className="w-4 h-4 text-neutral-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+          </a>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="flex-1 overflow-auto">
+        <table className="w-full border-collapse text-sm">
+          <thead className="sticky top-0 z-10">
+            <tr>
+              <th className="bg-neutral-800 text-neutral-300 font-semibold px-3 py-2 text-left border-b border-neutral-700 w-12">
+                #
+              </th>
+              {headers.map((header, i) => (
+                <th
+                  key={i}
+                  className="bg-neutral-800 text-neutral-300 font-semibold px-3 py-2 text-left border-b border-neutral-700 whitespace-nowrap"
+                >
+                  {header || `Column ${i + 1}`}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, rowIndex) => (
+              <tr
+                key={rowIndex}
+                className="hover:bg-neutral-800/50 transition-colors"
+              >
+                <td className="px-3 py-2 text-neutral-500 border-b border-neutral-800/50 text-xs">
+                  {rowIndex + 1}
+                </td>
+                {headers.map((_, colIndex) => (
+                  <td
+                    key={colIndex}
+                    className="px-3 py-2 text-neutral-300 border-b border-neutral-800/50 max-w-xs truncate"
+                    title={row[colIndex] || ""}
+                  >
+                    {row[colIndex] || ""}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        
+        {hasMore && (
+          <div className="p-4 text-center">
+            <button
+              onClick={loadMore}
+              className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-lg text-sm transition-colors"
+            >
+              Load more rows ({data.length - visibleRows - 1} remaining)
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Excel Viewer using xlsx library - fast and responsive
+function ExcelViewer({ url, filename }: { url: string; filename: string }) {
+  const [sheets, setSheets] = useState<{ name: string; data: string[][] }[]>([]);
+  const [activeSheet, setActiveSheet] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [visibleRows, setVisibleRows] = useState(100);
+
+  useEffect(() => {
+    fetch(url)
+      .then((res) => res.arrayBuffer())
+      .then((buffer) => {
+        const workbook = XLSX.read(buffer, { type: "array" });
+        const parsedSheets = workbook.SheetNames.map((name) => {
+          const sheet = workbook.Sheets[name];
+          const data = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as string[][];
+          return { name, data };
+        });
+        setSheets(parsedSheets);
+        setLoading(false);
+      })
+      .catch(() => {
+        setError(true);
+        setLoading(false);
+      });
+  }, [url]);
+
+  const loadMore = () => {
+    setVisibleRows((prev) => Math.min(prev + 100, currentData.length));
+  };
+
+  if (loading) {
+    return (
+      <div className="h-full flex items-center justify-center bg-neutral-950">
+        <div className="text-center">
+          <div className="animate-spin w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full mx-auto mb-3"></div>
+          <p className="text-neutral-300">Loading {filename}...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || sheets.length === 0) {
+    return (
+      <div className="h-full flex items-center justify-center bg-neutral-950">
+        <div className="text-center">
+          <p className="text-neutral-300">{filename}</p>
+          <p className="text-neutral-500 text-sm mt-1">Failed to load Excel file</p>
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-block mt-4 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-white text-sm transition-colors"
+          >
+            Download File
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  const currentData = sheets[activeSheet]?.data || [];
+  const headers = currentData[0] || [];
+  const rows = currentData.slice(1, visibleRows + 1);
+  const hasMore = currentData.length > visibleRows + 1;
+
+  return (
+    <div className="h-full w-full bg-neutral-950 flex flex-col">
+      {/* Header with sheet tabs */}
+      <div className="flex items-center justify-between px-4 py-2 bg-neutral-900 border-b border-neutral-800 shrink-0">
+        <div className="flex items-center gap-2 overflow-x-auto">
+          {sheets.map((sheet, index) => (
+            <button
+              key={sheet.name}
+              onClick={() => {
+                setActiveSheet(index);
+                setVisibleRows(100);
+              }}
+              className={`px-3 py-1 text-xs rounded-md whitespace-nowrap transition-colors ${
+                activeSheet === index
+                  ? "bg-emerald-600 text-white"
+                  : "bg-neutral-800 text-neutral-400 hover:bg-neutral-700"
+              }`}
+            >
+              {sheet.name}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-3 shrink-0 ml-2">
+          <span className="text-neutral-500 text-xs">
+            {currentData.length - 1} rows
+          </span>
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-1.5 rounded-md bg-neutral-800 hover:bg-neutral-700 transition-colors"
+            title="Download file"
+          >
+            <svg className="w-4 h-4 text-neutral-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+          </a>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="flex-1 overflow-auto">
+        <table className="w-full border-collapse text-sm">
+          <thead className="sticky top-0 z-10">
+            <tr>
+              <th className="bg-neutral-800 text-neutral-300 font-semibold px-3 py-2 text-left border-b border-neutral-700 w-12">
+                #
+              </th>
+              {headers.map((header, i) => (
+                <th
+                  key={i}
+                  className="bg-neutral-800 text-neutral-300 font-semibold px-3 py-2 text-left border-b border-neutral-700 whitespace-nowrap"
+                >
+                  {header || `Column ${i + 1}`}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, rowIndex) => (
+              <tr
+                key={rowIndex}
+                className="hover:bg-neutral-800/50 transition-colors"
+              >
+                <td className="px-3 py-2 text-neutral-500 border-b border-neutral-800/50 text-xs">
+                  {rowIndex + 1}
+                </td>
+                {headers.map((_, colIndex) => (
+                  <td
+                    key={colIndex}
+                    className="px-3 py-2 text-neutral-300 border-b border-neutral-800/50 max-w-xs truncate"
+                    title={String(row[colIndex] ?? "")}
+                  >
+                    {String(row[colIndex] ?? "")}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        
+        {hasMore && (
+          <div className="p-4 text-center">
+            <button
+              onClick={loadMore}
+              className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-lg text-sm transition-colors"
+            >
+              Load more rows ({currentData.length - visibleRows - 1} remaining)
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

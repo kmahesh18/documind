@@ -73,3 +73,213 @@
 .resizer.active {
   background: hsl(160 84% 39%);
 }
+
+/* React Doc Viewer Dark Theme Overrides */
+.doc-viewer-container {
+  height: 100% !important;
+  width: 100% !important;
+}
+
+.doc-viewer-container > div,
+.doc-viewer-container #react-doc-viewer {
+  height: 100% !important;
+  width: 100% !important;
+  background-color: #0a0a0a !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.doc-viewer-container #header-bar {
+  display: none !important;
+}
+
+.doc-viewer-container #proxy-renderer {
+  background-color: #0a0a0a !important;
+  height: 100% !important;
+  width: 100% !important;
+  flex: 1 !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.doc-viewer-container #proxy-renderer > div {
+  flex: 1 !important;
+  height: 100% !important;
+  width: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+/* DOCX/DOC - Microsoft Office Online viewer */
+.doc-viewer-container #msdoc-renderer {
+  background-color: #0a0a0a !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  flex: 1 !important;
+  height: 100% !important;
+  width: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.doc-viewer-container #msdoc-renderer iframe {
+  flex: 1 !important;
+  width: 100% !important;
+  height: 100% !important;
+  border: none !important;
+}
+
+/* DOCX wrapper styling - responsive */
+.doc-viewer-container .docx-wrapper {
+  background-color: #171717 !important;
+  padding: 16px !important;
+  min-height: 100% !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow-x: hidden !important;
+  box-sizing: border-box !important;
+}
+
+.doc-viewer-container .docx-wrapper section,
+.doc-viewer-container .docx-wrapper article {
+  background-color: #1f1f1f !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5) !important;
+  border-radius: 4px;
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 auto 16px auto !important;
+  padding: 24px !important;
+  box-sizing: border-box !important;
+  overflow-wrap: break-word !important;
+  word-wrap: break-word !important;
+}
+
+.doc-viewer-container .docx-wrapper p,
+.doc-viewer-container .docx-wrapper span,
+.doc-viewer-container .docx-wrapper div,
+.doc-viewer-container .docx-wrapper h1,
+.doc-viewer-container .docx-wrapper h2,
+.doc-viewer-container .docx-wrapper h3,
+.doc-viewer-container .docx-wrapper li {
+  color: #e5e5e5 !important;
+  max-width: 100% !important;
+  overflow-wrap: break-word !important;
+  word-wrap: break-word !important;
+}
+
+/* PPTX - responsive, fit to container width */
+.doc-viewer-container #pptx-renderer {
+  background-color: #0a0a0a !important;
+  height: 100% !important;
+  width: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  padding: 16px !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  box-sizing: border-box !important;
+}
+
+.doc-viewer-container #pptx-renderer > div {
+  width: 100% !important;
+  max-width: 100% !important;
+  height: auto !important;
+}
+
+.doc-viewer-container #pptx-renderer section,
+.doc-viewer-container #pptx-renderer .slide {
+  width: 100% !important;
+  max-width: 100% !important;
+  height: auto !important;
+  margin-bottom: 16px !important;
+  box-sizing: border-box !important;
+}
+
+.doc-viewer-container #pptx-renderer svg {
+  width: 100% !important;
+  height: auto !important;
+  max-width: 100% !important;
+  display: block !important;
+}
+
+.doc-viewer-container table {
+  background-color: #171717 !important;
+  color: #e5e5e5 !important;
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.doc-viewer-container th,
+.doc-viewer-container td {
+  border: 1px solid #262626 !important;
+  padding: 8px 12px !important;
+  color: #e5e5e5 !important;
+}
+
+.doc-viewer-container th {
+  background-color: #262626 !important;
+  font-weight: 600 !important;
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 10 !important;
+}
+
+.doc-viewer-container tr:nth-child(even) {
+  background-color: #1a1a1a !important;
+}
+
+.doc-viewer-container tr:hover {
+  background-color: #262626 !important;
+}
+
+/* DOCX specific styling */
+.doc-viewer-container .docx-wrapper {
+  background-color: #171717 !important;
+  padding: 24px !important;
+  min-height: 100% !important;
+}
+
+.doc-viewer-container .docx-wrapper section {
+  background-color: #1f1f1f !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5) !important;
+  border-radius: 4px;
+  min-height: auto !important;
+  margin: 0 auto !important;
+}
+
+.doc-viewer-container .docx-wrapper p,
+.doc-viewer-container .docx-wrapper span,
+.doc-viewer-container .docx-wrapper div {
+  color: #e5e5e5 !important;
+}
+
+/* PDF Navigation */
+.doc-viewer-container #pdf-controls {
+  background-color: #171717 !important;
+  border-color: #262626 !important;
+}
+
+.doc-viewer-container #pdf-controls button {
+  color: #e5e5e5 !important;
+}
+
+.doc-viewer-container #pdf-controls button:hover {
+  background-color: #262626 !important;
+}
+
+/* Image renderer in doc viewer */
+.doc-viewer-container #image-renderer {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  height: 100% !important;
+  background-color: #0a0a0a !important;
+}
+
+.doc-viewer-container #image-renderer img {
+  max-width: 100% !important;
+  max-height: 100% !important;
+  object-fit: contain !important;
+}
