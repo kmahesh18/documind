@@ -18,8 +18,6 @@ interface FileViewerProps {
 
 // File types that should use DocViewer (excluding spreadsheets now)
 const DOC_VIEWER_TYPES = ["docx", "ppt", "pptx", "doc"];
-// Spreadsheet types use custom viewers
-const SPREADSHEET_TYPES = ["xlsx", "xls", "csv"];
 
 export function FileViewer({ file }: FileViewerProps) {
   const { filename, file_type, file_url, status } = file;
@@ -111,7 +109,7 @@ export function FileViewer({ file }: FileViewerProps) {
 
   // Document viewer for DOCX, PPTX using react-doc-viewer
   if (DOC_VIEWER_TYPES.includes(file_type)) {
-    return <DocumentViewer url={file_url} filename={filename} fileType={file_type} />;
+    return <DocumentViewer url={file_url} filename={filename} />;
   }
 
   // Fallback for unsupported types
@@ -174,7 +172,7 @@ function TextViewer({ url }: { url: string }) {
 }
 
 // Document viewer component using react-doc-viewer (for DOCX, PPTX only)
-function DocumentViewer({ url, filename, fileType }: { url: string; filename: string; fileType: string }) {
+function DocumentViewer({ url, filename }: { url: string; filename: string }) {
   const [error, setError] = useState(false);
   const docs = [{ uri: url, fileName: filename }];
 

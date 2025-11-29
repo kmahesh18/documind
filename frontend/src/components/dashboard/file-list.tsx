@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { FileText, Video, Image, File, Trash2, RefreshCw, Clock, CheckCircle2, AlertCircle, Loader2, MessageSquare } from "lucide-react";
+import { FileText, Video, Image as ImageIcon, File, Trash2, RefreshCw, Clock, CheckCircle2, AlertCircle, Loader2, MessageSquare } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { getUserFiles, deleteFile, getFileStatus } from "@/lib/api";
 import { UploadedFile, FileType } from "@/types";
@@ -20,7 +20,7 @@ const getFileIcon = (type: FileType) => {
     case "audio":
       return <Video className="h-5 w-5 text-blue-400" />;
     case "image":
-      return <Image className="h-5 w-5 text-green-400" />;
+      return <ImageIcon className="h-5 w-5 text-green-400" />;
     case "ppt":
       return <FileText className="h-5 w-5 text-violet-400" />;
     case "docx":

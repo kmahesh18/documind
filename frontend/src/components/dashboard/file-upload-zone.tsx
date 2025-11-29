@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
-import { Upload, FileText, Image, Video, File, X, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import { Upload, FileText, Image as ImageIcon, Video, File, X, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { uploadFile } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -34,7 +34,7 @@ const ACCEPTED_FILE_TYPES = {
 };
 
 const getFileIcon = (type: string) => {
-  if (type.startsWith("image/")) return <Image className="h-6 w-6 text-emerald-400" />;
+  if (type.startsWith("image/")) return <ImageIcon className="h-6 w-6 text-emerald-400" />;
   if (type.startsWith("video/")) return <Video className="h-6 w-6 text-blue-400" />;
   if (type === "application/pdf") return <FileText className="h-6 w-6 text-red-400" />;
   if (type === "application/vnd.ms-powerpoint" || type === "application/vnd.openxmlformats-officedocument.presentationml.presentation")
