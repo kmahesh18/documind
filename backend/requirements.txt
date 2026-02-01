@@ -3,13 +3,18 @@
 # Core
 fastapi
 uvicorn[standard]
+gunicorn
 python-multipart
 python-jose[cryptography]
 passlib[bcrypt]
 
 # Database
-supabase
+motor
 python-dotenv
+pymongo
+
+# File Storage
+cloudinary
 
 # AI - Gemini for chat, FREE local embeddings
 google-generativeai

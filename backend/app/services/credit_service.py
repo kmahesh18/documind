@@ -2,7 +2,7 @@
 Credit Service - Manages user credits, transactions, and token counting.
 """
 from typing import Optional, Tuple, List, Dict, Any
-from app.services.supabase_service import get_supabase
+from app.services.mongodb_service import get_mongodb_service
 from app.core.config import get_settings
 import math
 
@@ -13,7 +13,7 @@ class CreditService:
     """Service for managing user credits."""
 
     def __init__(self):
-        self.supabase = get_supabase()
+        self.mongodb = get_mongodb_service()
         self.free_credits = settings.free_signup_credits
         self.credits_per_token = settings.credits_per_token
 
@@ -47,58 +47,43 @@ class CreditService:
     async def get_user_credits(self, user_id: str) -> Dict[str, Any]:
         """Get user's current credit balance and stats."""
         try:
-            response = self.supabase.table("user_credits").select("*").eq("user_id", user_id).single().execute()
+            credits = await self.mongodb.get_user_credits(user_id)
             
-            if response.data:
+            if credits:
                 return {
-                    "credits_balance": response.data["credits_balance"],
-                    "total_purchased": response.data["total_purchased"],
-                    "total_used": response.data["total_used"],
-                    "created_at": response.data["created_at"],
+                    "credits_balance": credits["credits_balance"],
+                    "total_purchased": credits.get("total_purchased", 0),
+                    "total_used": credits.get("total_used", 0),
+                    "created_at": credits.get("created_at"),
                 }
             else:
                 # Initialize credits for new user
                 return await self.initialize_user_credits(user_id)
         except Exception as e:
-            if "PGRST116" in str(e):  # No rows returned
-                return await self.initialize_user_credits(user_id)
-            raise
+            print(f"Error getting user credits: {e}")
+            return await self.initialize_user_credits(user_id)
 
     async def initialize_user_credits(self, user_id: str) -> Dict[str, Any]:
         """Initialize credits for a new user with free signup bonus."""
         try:
-            # Insert new user credits
-            self.supabase.table("user_credits").insert({
-                "user_id": user_id,
-                "credits_balance": self.free_credits,
-                "total_purchased": 0,
-                "total_used": 0,
-            }).execute()
-            
-            # Log signup bonus transaction
-            self.supabase.table("credit_transactions").insert({
-                "user_id": user_id,
-                "amount": self.free_credits,
-                "balance_after": self.free_credits,
-                "transaction_type": "signup_bonus",
-                "description": f"Welcome bonus - {self.free_credits} free credits",
-            }).execute()
+            credits = await self.mongodb.initialize_user_credits(user_id, self.free_credits)
             
             return {
-                "credits_balance": self.free_credits,
-                "total_purchased": 0,
-                "total_used": 0,
-                "created_at": None,
+                "credits_balance": credits["credits_balance"],
+                "total_purchased": credits.get("total_purchased", 0),
+                "total_used": credits.get("total_used", 0),
+                "created_at": credits.get("created_at"),
             }
         except Exception as e:
-            # If duplicate, just fetch existing
-            if "duplicate" in str(e).lower() or "23505" in str(e):
-                response = self.supabase.table("user_credits").select("*").eq("user_id", user_id).single().execute()
+            print(f"Error initializing credits: {e}")
+            # If already exists, just fetch
+            credits = await self.mongodb.get_user_credits(user_id)
+            if credits:
                 return {
-                    "credits_balance": response.data["credits_balance"],
-                    "total_purchased": response.data["total_purchased"],
-                    "total_used": response.data["total_used"],
-                    "created_at": response.data["created_at"],
+                    "credits_balance": credits["credits_balance"],
+                    "total_purchased": credits.get("total_purchased", 0),
+                    "total_used": credits.get("total_used", 0),
+                    "created_at": credits.get("created_at"),
                 }
             raise
 
@@ -124,43 +109,23 @@ class CreditService:
         Returns (success, new_balance, message)
         """
         try:
-            # Get current balance and total_used
-            response = self.supabase.table("user_credits").select("credits_balance, total_used").eq("user_id", user_id).single().execute()
+            result = await self.mongodb.update_user_credits(
+                user_id=user_id,
+                credits_delta=-amount,
+                transaction_type="chat_usage",
+                description=description,
+                reference_id=reference_id,
+                metadata=metadata
+            )
             
-            if not response.data:
+            if result:
+                return True, result["credits_balance"], "Credits deducted successfully"
+            else:
+                # Check current balance for better error message
+                credits = await self.mongodb.get_user_credits(user_id)
+                if credits:
+                    return False, credits["credits_balance"], "Insufficient credits"
                 return False, 0, "User credits not found"
-            
-            current_balance = response.data["credits_balance"]
-            total_used = response.data["total_used"] or 0
-            
-            if current_balance < amount:
-                return False, current_balance, "Insufficient credits"
-            
-            new_balance = current_balance - amount
-            
-            # Update balance atomically
-            update_response = self.supabase.table("user_credits").update({
-                "credits_balance": new_balance,
-                "total_used": total_used + amount,
-            }).eq("user_id", user_id).execute()
-            
-            print(f"Credit update response: {update_response.data}")
-            
-            # Log transaction
-            try:
-                self.supabase.table("credit_transactions").insert({
-                    "user_id": user_id,
-                    "amount": -amount,
-                    "balance_after": new_balance,
-                    "transaction_type": "chat_usage",
-                    "description": description,
-                    "reference_id": reference_id,
-                    "metadata": metadata or {},
-                }).execute()
-            except Exception as tx_error:
-                print(f"Transaction logging error (non-critical): {tx_error}")
-            
-            return True, new_balance, "Credits deducted successfully"
             
         except Exception as e:
             print(f"Credit deduction error: {e}")
@@ -180,39 +145,19 @@ class CreditService:
         Returns (success, new_balance, message)
         """
         try:
-            # Get current balance
-            response = self.supabase.table("user_credits").select("*").eq("user_id", user_id).single().execute()
+            result = await self.mongodb.update_user_credits(
+                user_id=user_id,
+                credits_delta=amount,
+                transaction_type=transaction_type,
+                description=description,
+                reference_id=reference_id,
+                metadata=metadata
+            )
             
-            if not response.data:
-                # Initialize first
-                await self.initialize_user_credits(user_id)
-                response = self.supabase.table("user_credits").select("*").eq("user_id", user_id).single().execute()
-            
-            current_balance = response.data["credits_balance"]
-            total_purchased = response.data["total_purchased"]
-            new_balance = current_balance + amount
-            
-            # Update balance
-            update_data = {
-                "credits_balance": new_balance,
-            }
-            if transaction_type == "purchase":
-                update_data["total_purchased"] = total_purchased + amount
-            
-            self.supabase.table("user_credits").update(update_data).eq("user_id", user_id).execute()
-            
-            # Log transaction
-            self.supabase.table("credit_transactions").insert({
-                "user_id": user_id,
-                "amount": amount,
-                "balance_after": new_balance,
-                "transaction_type": transaction_type,
-                "description": description,
-                "reference_id": reference_id,
-                "metadata": metadata or {},
-            }).execute()
-            
-            return True, new_balance, "Credits added successfully"
+            if result:
+                return True, result["credits_balance"], "Credits added successfully"
+            else:
+                return False, 0, "Failed to add credits"
             
         except Exception as e:
             print(f"Add credits error: {e}")
@@ -221,20 +166,13 @@ class CreditService:
     async def get_transaction_history(
         self,
         user_id: str,
-        limit: int = 20,
-        offset: int = 0,
-        transaction_type: Optional[str] = None
+        limit: int = 50,
+        offset: int = 0
     ) -> List[Dict[str, Any]]:
-        """Get user's credit transaction history."""
+        """Get credit transaction history for a user."""
         try:
-            query = self.supabase.table("credit_transactions").select("*").eq("user_id", user_id)
-            
-            if transaction_type:
-                query = query.eq("transaction_type", transaction_type)
-            
-            response = query.order("created_at", desc=True).range(offset, offset + limit - 1).execute()
-            
-            return response.data or []
+            transactions = await self.mongodb.get_credit_transactions(user_id, limit=limit)
+            return transactions
             
         except Exception as e:
             print(f"Get transaction history error: {e}")
@@ -243,14 +181,14 @@ class CreditService:
     async def get_credit_packages(self, active_only: bool = True) -> List[Dict[str, Any]]:
         """Get available credit packages."""
         try:
-            query = self.supabase.table("credit_packages").select("*")
+            query = {"is_active": True} if active_only else {}
+            cursor = self.mongodb.db.credit_packages.find(query).sort("sort_order", 1)
+            packages = await cursor.to_list(length=None)
             
-            if active_only:
-                query = query.eq("is_active", True)
+            for pkg in packages:
+                pkg["id"] = str(pkg["_id"])
             
-            response = query.order("sort_order").execute()
-            
-            return response.data or []
+            return packages
             
         except Exception as e:
             print(f"Get packages error: {e}")
@@ -259,8 +197,11 @@ class CreditService:
     async def get_package_by_id(self, package_id: str) -> Optional[Dict[str, Any]]:
         """Get a specific credit package."""
         try:
-            response = self.supabase.table("credit_packages").select("*").eq("id", package_id).single().execute()
-            return response.data
+            from bson import ObjectId
+            package = await self.mongodb.db.credit_packages.find_one({"_id": ObjectId(package_id)})
+            if package:
+                package["id"] = str(package["_id"])
+            return package
         except Exception as e:
             print(f"Get package error: {e}")
             return None

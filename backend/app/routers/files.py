@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File,
 from typing import List
 from app.core.security import get_current_user
 from app.models.schemas import FileUploadResponse, FileResponse
-from app.services.supabase_service import SupabaseService
+from app.services.mongodb_service import get_mongodb_service
 from app.services.local_processor import local_processor
 
 router = APIRouter(prefix="/files", tags=["Files"])
@@ -75,7 +75,7 @@ async def upload_file(
     Upload a file for processing.
     
     1. Validates file type and size
-    2. Uploads to Supabase Storage
+    2. Uploads to Cloudinary Storage
     3. Creates file record in database
     4. Processes file in background (extract text, generate embeddings, store in Pinecone)
     """
@@ -107,11 +107,15 @@ async def upload_file(
     # Get content type
     content_type = file.content_type or mimetypes.guess_type(file.filename)[0] or "application/octet-stream"
     
-    # Upload to Supabase Storage
-    supabase = SupabaseService()
+    # Upload to storage (Cloudinary)
+    mongodb = get_mongodb_service()
     try:
-        file_url = await supabase.upload_file(file_path, content, content_type)
+        file_url = await mongodb.upload_file(file_path, content, content_type)
+        print(f"[Upload] File uploaded successfully: {file.filename} -> {file_url}")
     except Exception as e:
+        print(f"[Upload] ERROR uploading file: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to upload file: {str(e)}",
@@ -129,10 +133,14 @@ async def upload_file(
     }
     
     try:
-        await supabase.create_file_record(file_record)
+        await mongodb.create_file_record(file_record)
+        print(f"[Upload] File record created: {file_id}")
     except Exception as e:
         # Clean up uploaded file if database insert fails
-        await supabase.delete_file(file_path)
+        print(f"[Upload] ERROR creating file record: {e}")
+        import traceback
+        traceback.print_exc()
+        await mongodb.delete_file(file_url)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create file record: {str(e)}",
@@ -142,6 +150,7 @@ async def upload_file(
     asyncio.create_task(process_file_locally(
         file_url, file_id, user_id, file.filename, file_type
     ))
+    print(f"[Upload] Background processing started for: {file.filename}")
     
     return FileUploadResponse(
         file_id=file_id,
@@ -152,8 +161,9 @@ async def upload_file(
 
 async def process_file_locally(file_url: str, file_id: str, user_id: str, filename: str, file_type: str):
     """Background task to process file."""
-    supabase = SupabaseService()
+    mongodb = get_mongodb_service()
     try:
+        print(f"[Process] Starting processing for: {filename} (type: {file_type})")
         success = await local_processor.process_file(
             file_url=file_url,
             file_id=file_id,
@@ -164,19 +174,21 @@ async def process_file_locally(file_url: str, file_id: str, user_id: str, filena
         
         # Update file status
         new_status = "ready" if success else "error"
-        await supabase.update_file_status(file_id, new_status)
-        print(f"File {filename} processing complete: {new_status}")
+        await mongodb.update_file_status(file_id, new_status)
+        print(f"[Process] File {filename} processing complete: {new_status}")
         
     except Exception as e:
-        print(f"Local processing error: {e}")
-        await supabase.update_file_status(file_id, "error")
+        print(f"[Process] ERROR processing {filename}: {e}")
+        import traceback
+        traceback.print_exc()
+        await mongodb.update_file_status(file_id, "error")
 
 
 @router.get("", response_model=List[FileResponse])
 async def get_user_files(current_user: dict = Depends(get_current_user)):
     """Get all files for the current user."""
-    supabase = SupabaseService()
-    files = await supabase.get_user_files(current_user["user_id"])
+    mongodb = get_mongodb_service()
+    files = await mongodb.get_user_files(current_user["user_id"])
     return files
 
 
@@ -186,8 +198,8 @@ async def get_file(
     current_user: dict = Depends(get_current_user),
 ):
     """Get a specific file by ID."""
-    supabase = SupabaseService()
-    file = await supabase.get_file(file_id, current_user["user_id"])
+    mongodb = get_mongodb_service()
+    file = await mongodb.get_file(file_id, current_user["user_id"])
     
     if not file:
         raise HTTPException(
@@ -204,25 +216,25 @@ async def delete_file(
     current_user: dict = Depends(get_current_user),
 ):
     """Delete a file."""
-    supabase = SupabaseService()
+    mongodb = get_mongodb_service()
     user_id = current_user["user_id"]
     
     # Get file record
-    file = await supabase.get_file(file_id, user_id)
+    file = await mongodb.get_file(file_id, user_id)
     if not file:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="File not found",
         )
     
-    # Delete from storage
+    # Delete from Cloudinary storage
     try:
-        await supabase.delete_file(file["file_path"])
+        await mongodb.delete_file(file["file_url"])
     except Exception as e:
         print(f"Warning: Failed to delete file from storage: {e}")
     
     # Delete from database
-    await supabase.delete_file_record(file_id, user_id)
+    await mongodb.delete_file_record(file_id, user_id)
     
     # TODO: Also delete vectors from Pinecone
     
@@ -245,8 +257,8 @@ async def update_file_status(
             detail="Invalid status. Must be 'ready' or 'error'",
         )
     
-    supabase = SupabaseService()
-    result = await supabase.update_file_status(file_id, status, error_message)
+    mongodb = get_mongodb_service()
+    result = await mongodb.update_file_status(file_id, status, error_message)
     
     if not result:
         raise HTTPException(

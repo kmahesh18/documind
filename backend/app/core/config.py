@@ -17,10 +17,14 @@ class Settings(BaseSettings):
     jwt_expiration_hours: int = 24
     google_client_id: str = ""
     
-    # Supabase Configuration
-    supabase_url: str = ""
-    supabase_key: str = ""
-    supabase_storage_bucket: str = "documents"
+    # MongoDB Configuration
+    mongodb_url: str = ""
+    mongodb_db_name: str = "documind"
+    
+    # Cloudinary Configuration (for file storage)
+    cloudinary_cloud_name: str = ""
+    cloudinary_api_key: str = ""
+    cloudinary_api_secret: str = ""
     
     # Google Gemini Configuration
     gemini_api_key: str = ""
@@ -54,6 +58,9 @@ class Settings(BaseSettings):
         if isinstance(v, list):
             return v
         if isinstance(v, str):
+            # Handle wildcard for all origins
+            if v.strip() == "*":
+                return ["*"]
             # Try parsing as JSON first
             try:
                 parsed = json.loads(v)
@@ -63,7 +70,7 @@ class Settings(BaseSettings):
                 pass
             # Otherwise treat as comma-separated string
             return [origin.strip() for origin in v.split(",") if origin.strip()]
-        return ["http://localhost:3000"]
+        return ["*"]
     
     class Config:
         env_file = ".env"

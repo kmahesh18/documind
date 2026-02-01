@@ -7,7 +7,7 @@ export interface User {
 }
 
 // File types
-export type FileType = 'pdf' | 'txt' | 'csv' | 'image' | 'video' | 'audio' | 'ppt' | 'docx' | 'xlsx';
+export type FileType = 'pdf' | 'txt' | 'csv' | 'image' | 'video' | 'audio' | 'ppt' | 'docx' | 'doc' | 'xlsx' | 'xls';
 
 export interface UploadedFile {
   id: string;

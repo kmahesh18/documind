@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from app.core.security import verify_google_token, create_access_token, get_current_user
 from app.models.schemas import GoogleAuthRequest, TokenResponse
-from app.services.supabase_service import SupabaseService
+from app.services.mongodb_service import get_mongodb_service
+from app.services.credit_service import get_credit_service
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -13,14 +14,23 @@ async def google_auth(request: GoogleAuthRequest):
     
     1. Verifies the Google token
     2. Gets or creates user in database
-    3. Returns JWT access token
+    3. Initializes credits for new users
+    4. Returns JWT access token
     """
     # Verify Google token
     user_info = await verify_google_token(request.token)
     
     # Get or create user in database
-    supabase = SupabaseService()
-    user = await supabase.get_or_create_user(user_info)
+    mongodb = get_mongodb_service()
+    user = await mongodb.get_or_create_user(user_info)
+    
+    # Initialize credits for the user (handles existing users gracefully)
+    credit_service = get_credit_service()
+    try:
+        await credit_service.get_user_credits(user["id"])
+        print(f"Credits initialized/fetched for user: {user['email']}")
+    except Exception as e:
+        print(f"Warning: Could not initialize credits: {e}")
     
     # Create JWT token
     token_data = {

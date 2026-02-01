@@ -29,6 +29,14 @@ app.include_router(chat.router, prefix=settings.api_prefix)
 app.include_router(credits.router, prefix=settings.api_prefix)
 
 
+@app.on_event("startup")
+async def startup_event():
+    """Initialize services on startup."""
+    print(f"🚀 Starting {settings.app_name}...")
+    print(f"☁️  File storage: Cloudinary")
+    print(f"🗄️  MongoDB: {settings.mongodb_db_name}")
+    
+
 @app.get("/")
 async def root():
     return {

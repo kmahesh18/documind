@@ -6,7 +6,7 @@ import hmac
 import hashlib
 from typing import Dict, Any, Optional, Tuple
 from app.core.config import get_settings
-from app.services.supabase_service import get_supabase
+from app.services.mongodb_service import get_mongodb_service
 from app.services.credit_service import get_credit_service
 
 settings = get_settings()
@@ -16,7 +16,7 @@ class PaymentService:
     """Service for handling Razorpay payments."""
 
     def __init__(self):
-        self.supabase = get_supabase()
+        self.mongodb = get_mongodb_service()
         self.credit_service = get_credit_service()
         
         # Initialize Razorpay client
@@ -73,7 +73,8 @@ class PaymentService:
             razorpay_order = self.razorpay_client.order.create(data=order_data)
             
             # Save order to database
-            self.supabase.table("payment_orders").insert({
+            from datetime import datetime
+            await self.mongodb.db.payment_orders.insert_one({
                 "user_id": user_id,
                 "razorpay_order_id": razorpay_order["id"],
                 "package_id": package_id,
@@ -84,8 +85,9 @@ class PaymentService:
                     "package_name": package["name"],
                     "user_email": user_email,
                     "user_name": user_name,
-                }
-            }).execute()
+                },
+                "created_at": datetime.utcnow(),
+            })
 
             return {
                 "order_id": razorpay_order["id"],
@@ -148,14 +150,10 @@ class PaymentService:
                 return False, "Payment verification failed", 0
 
             # Get order from database
-            order_response = self.supabase.table("payment_orders").select("*").eq(
-                "razorpay_order_id", razorpay_order_id
-            ).single().execute()
+            order = await self.mongodb.db.payment_orders.find_one({"razorpay_order_id": razorpay_order_id})
 
-            if not order_response.data:
+            if not order:
                 return False, "Order not found", 0
-
-            order = order_response.data
 
             # Check if already processed
             if order["status"] == "paid":
@@ -167,12 +165,16 @@ class PaymentService:
                 return False, "User mismatch", 0
 
             # Update order status
-            self.supabase.table("payment_orders").update({
-                "razorpay_payment_id": razorpay_payment_id,
-                "razorpay_signature": razorpay_signature,
-                "status": "paid",
-                "updated_at": "now()",
-            }).eq("razorpay_order_id", razorpay_order_id).execute()
+            from datetime import datetime
+            await self.mongodb.db.payment_orders.update_one(
+                {"razorpay_order_id": razorpay_order_id},
+                {"$set": {
+                    "razorpay_payment_id": razorpay_payment_id,
+                    "razorpay_signature": razorpay_signature,
+                    "status": "paid",
+                    "updated_at": datetime.utcnow(),
+                }}
+            )
 
             # Add credits
             credits = order["credits"]
@@ -223,19 +225,19 @@ class PaymentService:
                 payment_id = payment.get("id")
                 
                 # Get order
-                order_response = self.supabase.table("payment_orders").select("*").eq(
-                    "razorpay_order_id", order_id
-                ).single().execute()
+                order = await self.mongodb.db.payment_orders.find_one({"razorpay_order_id": order_id})
 
-                if order_response.data and order_response.data["status"] != "paid":
-                    order = order_response.data
-                    
+                if order and order["status"] != "paid":
+                    from datetime import datetime
                     # Update order
-                    self.supabase.table("payment_orders").update({
-                        "razorpay_payment_id": payment_id,
-                        "status": "paid",
-                        "updated_at": "now()",
-                    }).eq("razorpay_order_id", order_id).execute()
+                    await self.mongodb.db.payment_orders.update_one(
+                        {"razorpay_order_id": order_id},
+                        {"$set": {
+                            "razorpay_payment_id": payment_id,
+                            "status": "paid",
+                            "updated_at": datetime.utcnow(),
+                        }}
+                    )
 
                     # Add credits
                     await self.credit_service.add_credits(
@@ -250,10 +252,14 @@ class PaymentService:
                 payment = payload.get("payload", {}).get("payment", {}).get("entity", {})
                 order_id = payment.get("order_id")
                 
-                self.supabase.table("payment_orders").update({
-                    "status": "failed",
-                    "updated_at": "now()",
-                }).eq("razorpay_order_id", order_id).execute()
+                from datetime import datetime
+                await self.mongodb.db.payment_orders.update_one(
+                    {"razorpay_order_id": order_id},
+                    {"$set": {
+                        "status": "failed",
+                        "updated_at": datetime.utcnow(),
+                    }}
+                )
 
             return True
 
@@ -264,11 +270,13 @@ class PaymentService:
     async def get_user_orders(self, user_id: str, limit: int = 10) -> list:
         """Get user's payment order history."""
         try:
-            response = self.supabase.table("payment_orders").select("*").eq(
-                "user_id", user_id
-            ).order("created_at", desc=True).limit(limit).execute()
+            cursor = self.mongodb.db.payment_orders.find({"user_id": user_id}).sort("created_at", -1).limit(limit)
+            orders = await cursor.to_list(length=limit)
             
-            return response.data or []
+            for order in orders:
+                order["id"] = str(order["_id"])
+            
+            return orders
         except Exception as e:
             print(f"Get orders error: {e}")
             return []

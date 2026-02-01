@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from app.core.security import get_current_user
 from app.models.schemas import ChatResponse, Citation
 from app.services.langchain_rag import get_rag_service
-from app.services.supabase_service import SupabaseService
+from app.services.mongodb_service import get_mongodb_service
 from app.services.credit_service import get_credit_service
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
@@ -44,7 +44,7 @@ async def chat(
     Checks and deducts credits before processing.
     """
     rag = get_rag_service()
-    supabase = SupabaseService()
+    mongodb = get_mongodb_service()
     credit_service = get_credit_service()
     user_id = current_user["user_id"]
     
@@ -63,7 +63,7 @@ async def chat(
             )
         
         # Get recent chat history for context
-        history = await supabase.get_file_chat_history(request.file_id, limit=10)
+        history = await mongodb.get_file_chat_history(request.file_id, limit=10)
         
         # Format history for context
         chat_history = []
@@ -74,7 +74,7 @@ async def chat(
             })
         
         # Save user message first
-        await supabase.save_file_chat_message(
+        await mongodb.save_file_chat_message(
             file_id=request.file_id,
             user_id=user_id,
             role="user",
@@ -108,7 +108,7 @@ async def chat(
         
         # Save assistant response
         citations_json = [c.model_dump() for c in citations] if citations else None
-        await supabase.save_file_chat_message(
+        await mongodb.save_file_chat_message(
             file_id=request.file_id,
             user_id=user_id,
             role="assistant",
@@ -146,10 +146,10 @@ async def get_chat_history(
     current_user: dict = Depends(get_current_user),
 ):
     """Get chat history for a specific file."""
-    supabase = SupabaseService()
+    mongodb = get_mongodb_service()
     
     try:
-        history = await supabase.get_file_chat_history(file_id, limit=100)
+        history = await mongodb.get_file_chat_history(file_id, limit=100)
         
         messages = [
             ChatHistoryMessage(
@@ -157,7 +157,7 @@ async def get_chat_history(
                 role=msg["role"],
                 content=msg["content"],
                 citations=msg.get("citations"),
-                created_at=msg["created_at"]
+                created_at=str(msg["created_at"])
             )
             for msg in history
         ]
@@ -175,8 +175,13 @@ async def clear_chat_history(
     current_user: dict = Depends(get_current_user),
 ):
     """Clear chat history for a file."""
-    supabase = SupabaseService()
+    mongodb = get_mongodb_service()
     user_id = current_user["user_id"]
     
-    await supabase.clear_file_chat_history(file_id, user_id)
+    # Delete all chat messages for this file and user
+    await mongodb.db.file_chat_messages.delete_many({
+        "file_id": file_id,
+        "user_id": user_id
+    })
+    
     return {"message": "Chat history cleared"}

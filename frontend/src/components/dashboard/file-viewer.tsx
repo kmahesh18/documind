@@ -37,13 +37,7 @@ export function FileViewer({ file }: FileViewerProps) {
 
   // PDF viewer
   if (file_type === "pdf") {
-    return (
-      <iframe
-        src={`${file_url}#toolbar=0`}
-        className="w-full h-full bg-neutral-950"
-        title={filename}
-      />
-    );
+    return <PDFViewer url={file_url} filename={filename} />;
   }
 
   // Image viewer
@@ -560,6 +554,144 @@ function ExcelViewer({ url, filename }: { url: string; filename: string }) {
             </button>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// PDF Viewer Component - uses PDF.js viewer or Google Docs for reliable preview
+function PDFViewer({ url, filename }: { url: string; filename: string }) {
+  const [viewMode, setViewMode] = useState<"pdfjs" | "google" | "direct">("pdfjs");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  // PDF.js viewer URL - Mozilla's hosted viewer
+  const pdfjsViewerUrl = `https://mozilla.github.io/pdf.js/web/viewer.html?file=${encodeURIComponent(url)}`;
+  
+  // Google Docs viewer as fallback
+  const googleViewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`;
+
+  const handleIframeLoad = () => {
+    setLoading(false);
+  };
+
+  const handleIframeError = () => {
+    setLoading(false);
+    if (viewMode === "pdfjs") {
+      // Try Google Docs viewer as fallback
+      setViewMode("google");
+      setLoading(true);
+    } else if (viewMode === "google") {
+      // Try direct embed as last resort
+      setViewMode("direct");
+      setLoading(true);
+    } else {
+      setError(true);
+    }
+  };
+
+  const getViewerUrl = () => {
+    switch (viewMode) {
+      case "pdfjs":
+        return pdfjsViewerUrl;
+      case "google":
+        return googleViewerUrl;
+      case "direct":
+        return `${url}#toolbar=1&navpanes=0&scrollbar=1`;
+      default:
+        return pdfjsViewerUrl;
+    }
+  };
+
+  if (error) {
+    return (
+      <div className="h-full flex items-center justify-center bg-neutral-950">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mb-4 mx-auto">
+            <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <p className="text-red-400 mb-2">Failed to load PDF preview</p>
+          <p className="text-neutral-500 text-sm mb-4">The PDF could not be displayed inline</p>
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+            Open in New Tab
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-full w-full flex flex-col bg-neutral-950">
+      {/* Header with viewer options */}
+      <div className="flex items-center justify-between px-4 py-2 bg-neutral-900 border-b border-neutral-800 shrink-0">
+        <span className="text-neutral-400 text-sm truncate max-w-[200px]">{filename}</span>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 bg-neutral-800 rounded-md p-0.5">
+            <button
+              onClick={() => { setViewMode("pdfjs"); setLoading(true); setError(false); }}
+              className={`px-2 py-1 text-xs rounded transition-colors ${viewMode === "pdfjs" ? "bg-emerald-600 text-white" : "text-neutral-400 hover:text-white"}`}
+              title="PDF.js Viewer"
+            >
+              PDF.js
+            </button>
+            <button
+              onClick={() => { setViewMode("google"); setLoading(true); setError(false); }}
+              className={`px-2 py-1 text-xs rounded transition-colors ${viewMode === "google" ? "bg-emerald-600 text-white" : "text-neutral-400 hover:text-white"}`}
+              title="Google Docs Viewer"
+            >
+              Google
+            </button>
+            <button
+              onClick={() => { setViewMode("direct"); setLoading(true); setError(false); }}
+              className={`px-2 py-1 text-xs rounded transition-colors ${viewMode === "direct" ? "bg-emerald-600 text-white" : "text-neutral-400 hover:text-white"}`}
+              title="Direct Embed"
+            >
+              Direct
+            </button>
+          </div>
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-1.5 rounded-md bg-neutral-800 hover:bg-neutral-700 transition-colors"
+            title="Open in new tab"
+          >
+            <svg className="w-4 h-4 text-neutral-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+          </a>
+        </div>
+      </div>
+      
+      {/* PDF container */}
+      <div className="flex-1 relative">
+        {loading && (
+          <div className="absolute inset-0 flex items-center justify-center bg-neutral-950 z-10">
+            <div className="text-center">
+              <div className="animate-spin w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full mx-auto mb-3"></div>
+              <p className="text-neutral-300">Loading PDF...</p>
+              <p className="text-neutral-500 text-xs mt-1">Using {viewMode === "pdfjs" ? "PDF.js" : viewMode === "google" ? "Google Docs" : "Direct"} viewer</p>
+            </div>
+          </div>
+        )}
+        <iframe
+          key={viewMode}
+          src={getViewerUrl()}
+          className="w-full h-full bg-neutral-900"
+          title={filename}
+          onLoad={handleIframeLoad}
+          onError={handleIframeError}
+        />
       </div>
     </div>
   );

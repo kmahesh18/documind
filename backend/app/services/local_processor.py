@@ -91,8 +91,12 @@ class LocalFileProcessor:
     async def _extract_text(self, content: bytes, file_type: str, filename: str) -> str:
         """Extract text from any file type."""
         try:
+            print(f"[Extract] Processing {filename} as type: {file_type}")
+            
             if file_type in ["txt", "csv"]:
-                return content.decode("utf-8", errors="ignore")
+                text = content.decode("utf-8", errors="ignore")
+                print(f"[Extract] Decoded text file: {len(text)} chars")
+                return text
             
             elif file_type == "pdf":
                 return self._extract_pdf(content)
@@ -114,10 +118,14 @@ class LocalFileProcessor:
             
             else:
                 # Try as text
-                return content.decode("utf-8", errors="ignore")
+                text = content.decode("utf-8", errors="ignore")
+                print(f"[Extract] Fallback text decode: {len(text)} chars")
+                return text
                 
         except Exception as e:
-            print(f"Extraction error for {file_type}: {e}")
+            print(f"[Extract] Error for {file_type}: {e}")
+            import traceback
+            traceback.print_exc()
             return ""
     
     def _extract_pdf(self, content: bytes) -> str:
@@ -207,6 +215,9 @@ class LocalFileProcessor:
         """Extract text from image using Gemini Vision."""
         try:
             import google.generativeai as genai
+            import base64
+            
+            print(f"[Image] Starting OCR for: {filename}, size: {len(content)} bytes")
             
             genai.configure(api_key=settings.gemini_api_key)
             model = genai.GenerativeModel("gemini-2.0-flash")
@@ -222,31 +233,38 @@ class LocalFileProcessor:
                 "bmp": "image/bmp"
             }
             mime_type = mime_map.get(ext, "image/png")
+            print(f"[Image] MIME type: {mime_type}")
             
-            # Create image part
+            # Create image part with base64 encoding
             image_part = {
                 "mime_type": mime_type,
-                "data": content
+                "data": base64.b64encode(content).decode("utf-8")
             }
             
             # Ask Gemini to extract all text and describe
-            prompt = """Analyze this image:
+            prompt = """Analyze this image thoroughly:
 
-1. Extract ALL visible text exactly as shown (OCR)
-2. Describe what the image contains
-3. Note any important details
+1. Extract ALL visible text exactly as shown (OCR) - be thorough and precise
+2. Describe what the image contains in detail
+3. Note any important visual elements, diagrams, charts, or data
 
-Be thorough - extract every piece of text you can see."""
+Be comprehensive - extract every piece of text and visual information you can see."""
 
             response = model.generate_content([prompt, image_part])
             
-            result = f"[Image: {filename}]\n{response.text}"
-            print(f"Image OCR done: {len(result)} chars")
-            return result
+            if response and response.text:
+                result = f"[Image: {filename}]\n\n{response.text}"
+                print(f"[Image] OCR done: {len(result)} chars extracted")
+                return result
+            else:
+                print(f"[Image] No response from Gemini for {filename}")
+                return f"[Image file: {filename}] - No text could be extracted"
             
         except Exception as e:
-            print(f"Image extraction error: {e}")
-            return f"[Image file: {filename}]"
+            print(f"[Image] Extraction error for {filename}: {e}")
+            import traceback
+            traceback.print_exc()
+            return f"[Image file: {filename}] - OCR failed: {str(e)}"
     
     async def _transcribe_media(self, content: bytes, filename: str, file_type: str) -> str:
         """Transcribe audio/video using Groq Whisper API."""

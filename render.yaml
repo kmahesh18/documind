@@ -1,0 +1,89 @@
+# Render Blueprint - Deploy DocuMind Backend
+# https://render.com/docs/blueprint-spec
+# Frontend is deployed on Vercel at: https://documind.maheshdev.tech
+
+services:
+  # ============================================
+  # Backend API Service (Docker)
+  # ============================================
+  - type: web
+    name: documind-api
+    env: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    region: oregon
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      # Authentication
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: JWT_EXPIRATION_HOURS
+        value: "24"
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      
+      # MongoDB
+      - key: MONGODB_URL
+        sync: false
+      - key: MONGODB_DB_NAME
+        value: documind
+      
+      # Cloudinary
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      
+      # Google Gemini AI
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_EMBEDDING_MODEL
+        value: models/embedding-001
+      - key: GEMINI_CHAT_MODEL
+        value: gemini-2.0-flash
+      
+      # Groq (optional)
+      - key: GROQ_API_KEY
+        sync: false
+      
+      # Pinecone
+      - key: PINECONE_API_KEY
+        sync: false
+      - key: PINECONE_INDEX_NAME
+        value: documind
+      - key: PINECONE_ENVIRONMENT
+        value: us-east-1
+      
+      # Razorpay
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: RAZORPAY_WEBHOOK_SECRET
+        sync: false
+      
+      # Credits
+      - key: FREE_SIGNUP_CREDITS
+        value: "100"
+      
+      # CORS - Allow all origins
+      - key: CORS_ORIGINS
+        value: "*"
+
+# ============================================
+# Frontend is deployed on Vercel
+# ============================================
+# URL: https://documind.maheshdev.tech
+# 
+# Required Vercel Environment Variables:
+# - NEXTAUTH_URL=https://documind.maheshdev.tech
+# - NEXTAUTH_SECRET=<generate-secure-random>
+# - GOOGLE_CLIENT_ID=<your-google-client-id>
+# - GOOGLE_CLIENT_SECRET=<your-google-client-secret>
+# - NEXT_PUBLIC_API_URL=https://documind-kagb.onrender.com
+# - NEXT_PUBLIC_RAZORPAY_KEY_ID=<your-razorpay-key>

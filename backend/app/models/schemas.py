@@ -22,7 +22,7 @@ class UserResponse(BaseModel):
 
 
 # File Models
-FileType = Literal["pdf", "txt", "csv", "image", "video", "audio", "ppt", "docx", "xlsx"]
+FileType = Literal["pdf", "txt", "csv", "image", "video", "audio", "ppt", "pptx" , "docx", "doc", "xlsx", "xls"]
 FileStatus = Literal["uploading", "processing", "ready", "error"]
 
 
