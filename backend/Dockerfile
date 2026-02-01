@@ -41,6 +41,10 @@ ENV PATH="/opt/venv/bin:$PATH"
 # Copy application code
 COPY ./app ./app
 
+# Copy startup script
+COPY start.sh /app/start.sh
+RUN chmod +x /app/start.sh
+
 # Create non-root user for security
 RUN useradd --create-home --shell /bin/bash appuser && \
     chown -R appuser:appuser /app
@@ -51,23 +55,12 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONPATH=/app
 
-# Health check
+# Health check - uses PORT env var
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
+    CMD python -c "import urllib.request,os; urllib.request.urlopen(f'http://localhost:{os.getenv(\"PORT\",\"8000\")}/health')" || exit 1
 
-# Expose port
+# Expose port (dynamic via $PORT)
 EXPOSE 8000
 
-# Run with gunicorn for production
-# - Workers: 2 (optimal for 512MB RAM on Render)
-# - Threads: 4 (handle concurrent requests)
-# - Timeout: 120s (for file processing)
-CMD ["gunicorn", "app.main:app", \
-    "--workers", "2", \
-    "--worker-class", "uvicorn.workers.UvicornWorker", \
-    "--bind", "0.0.0.0:8000", \
-    "--timeout", "120", \
-    "--keep-alive", "5", \
-    "--max-requests", "1000", \
-    "--max-requests-jitter", "50", \
-    "--preload"]
+# Run with startup script that respects $PORT
+CMD ["/app/start.sh"]
